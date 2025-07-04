@@ -1,7 +1,10 @@
-from fastapi import FastAPI
 import firebase_admin.auth
-from pydantic import BaseModel
-import pika
+import aio_pika
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from fastapi.responses import JSONResponse
+import asyncio
 import firebase_admin
 from firebase_admin import credentials, auth
 import json as JSON
@@ -15,8 +18,6 @@ if firebaseApp:
     print("Firebase initialized successfully")
 else:
     print("Failed to initialize Firebase")
-
-
 message_log = []
 
 def clear():
@@ -37,54 +38,104 @@ def print_message_log():
     for entry in message_log:
         print(f"{entry['display_name']}:",f"{entry['message']}")
 
-def callback(ch, method, props, body):
-    json = JSON.loads(body.decode())
-    message = json.get('message')
-    tokenId = json.get('tokenId')
+async def consume_rabbitmq():
+    connection = await aio_pika.connect_robust("amqp://localhost/")
+    channel = await connection.channel()
+    queue = await channel.declare_queue("chat-messages", durable=True)
 
-    response = {'status': 'ok', 'message': 'Received!'}
-    
-    
-    
-    user = get_user_from_token(json.get('tokenId'))
-
-
-    if user:
-        user_get = firebase_admin.auth.get_user(user.get('uid'))
-        message_log.append({
-            'userId': user.get('uid'),
-            'display_name': user_get.display_name if user_get.display_name else 'Unknown',
-            'email': user.get('email'),
-            'message': message
-        })
-        clear()
-        print(f"Received message from {user_get.display_name}: ", message)
-        print_message_log()
-        response.update({
-            'status': '200',
-            'message': f'Message from {user.get('email')} processed successfully.'
-        })
-    else:
-        print(f"Invalid token ID: {tokenId}. Message not processed.")
-        response.update({
-            'status': '401',
-            'message': 'Unauthorized. Message not processed.'
-        })
-    ch.basic_publish(
-        exchange='',
-        routing_key=props.reply_to,
-        properties=pika.BasicProperties(correlation_id=props.correlation_id),
-        body=JSON.dumps(response)
-    )
-    ch.basic_ack(delivery_tag=method.delivery_tag)
-
-connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
-channel = connection.channel()
-
-channel.queue_declare(queue='chat-messages', durable=True)
-channel.basic_consume(queue='chat-messages', on_message_callback=callback, auto_ack=False)
+    async with queue.iterator() as queue_iter:
+        async for message in queue_iter:
+            async with message.process():
+                json_data = JSON.loads(message.body.decode())
+                msg_text = json_data.get("message")
+                tokenId = json_data.get("tokenId")
+                response = {'status': 'ok', 'message': 'Received!'}
+                user = get_user_from_token(tokenId)
+                if user:
+                    user_get = firebase_admin.auth.get_user(user.get("uid"))
+                    entry = {
+                        "userId": user["uid"],
+                        "display_name": user_get.display_name or "Unknown",
+                        "email": user["email"],
+                        "message": msg_text,
+                    }
+                    clear()
+                    message_log.append(entry)
+                    print(f"✅ Mensagem recebida: {entry}")
+                    print_message_log()
+                    response.update({
+                        'status': '200',
+                        'message': f'Message from {user.get('email')} processed successfully.'
+                    })
+                    await broadcast_to_clients(entry)
+                else:
+                    print("⚠️ Token inválido")
+                    response.update({
+                        'status': '401',
+                        'message': 'Unauthorized. Message not processed.'
+                    })
+                if message.reply_to:
+                    await channel.default_exchange.publish(
+                        aio_pika.Message(
+                            body=JSON.dumps(response).encode(),
+                            correlation_id=message.correlation_id
+                        ),
+                        routing_key=message.reply_to
+                    )
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(consume_rabbitmq())
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            print("✅ consume_rabbitmq task cancelled cleanly.")
 
-print("Waiting for messages. Press CTRL+C to exit.")
-channel.start_consuming()
+app = FastAPI(lifespan=lifespan)
+
+# Para permitir conexões do React
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # ou especifique: ["http://localhost:5173"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+websocket_clients = []
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    websocket_clients.append(websocket)
+    try:
+        while True:
+            await websocket.receive_text()  # Mantém a conexão viva
+    except WebSocketDisconnect:
+        websocket_clients.remove(websocket)
+
+
+async def broadcast_to_clients(message_dict):
+    to_remove = []
+    for ws in websocket_clients:
+        try:
+            await ws.send_text(JSON.dumps(message_dict))
+        except:
+            to_remove.append(ws)
+    for ws in to_remove:
+        websocket_clients.remove(ws)
+
+
+
+@app.get("/messages")
+async def get_messages():
+    return JSONResponse(content=message_log)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
