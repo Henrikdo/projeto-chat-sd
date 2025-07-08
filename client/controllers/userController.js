@@ -52,6 +52,17 @@ const userController = {
             console.error("Error updating user:", error);
             res.status(500).json({ error: "Error updating user" });
         }
+    },
+    userVerifyLogin: async (req, res) => {
+        const { tokenId } = req.body;
+
+        try {
+            const decoded = await admin.auth().verifyIdToken(tokenId);
+            console.log("User verified with UID:", decoded.uid);
+            res.json({ valid: true, uid: decoded.uid, name: decoded.name });
+        } catch (err) {
+            res.status(401).json({ valid: false });
+        }
     }
 }
 

@@ -1,50 +1,58 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
+import Chat from "./Chat/Chat";
+import Login from "./Login/Login";
+
+const isLoggedIn = async (tokenId) => {
+  try {
+    const res = await fetch("http://localhost:3003/user/verifyLogin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tokenId }),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data.valid === true;
+  } catch (err) {
+    console.error("Login check failed:", err);
+    return false;
+  }
+};
 
 function App() {
-  const [messages, setMessages] = useState([]);
-  const [error, setError] = useState(null); 
-  console.log("App component rendered");
+  const [token, setToken] = useState(null);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-   const fetchMessages = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/messages");
-      if (!res.ok) throw new Error("Failed to fetch messages");
-      const data = await res.json();
-      setMessages(data);
-    } catch (error) {
-      console.error("Error fetching messages:", error);
-      setError("Server offline or unreachable");
-    }
-  };
-  fetchMessages();
-  // Connect WebSocket for real-time updates
-  const socket = new WebSocket("ws://localhost:8000/ws");
+    const checkLogin = async () => {
+      const storedToken = localStorage.getItem("tokenId");
+      if (storedToken) {
+        const stillValid = await isLoggedIn(storedToken);
+        if (stillValid) {
+          setToken(storedToken); // 🔐 valid token
+        } else {
+          localStorage.removeItem("tokenId");
+        }
+      }
+      setLoading(false);
+    };
+    checkLogin();
+  }, []);
 
-  socket.onmessage = (event) => {
-    const newMessage = JSON.parse(event.data);
-    setMessages((prev) => [...prev, newMessage]);
+  const handleLogin = (tokenId) => {
+    localStorage.setItem("tokenId", tokenId); // Store token for future
+    setToken(tokenId);
   };
 
-  socket.onopen = () => console.log("🔌 WebSocket connected");
-  socket.onerror = (err) => console.error("WebSocket error:", err);
-  socket.onclose = () => console.log("WebSocket closed");
+  if (loading) return <p>Carregando...</p>;
 
-  return () => {
-    socket.close(); // Cleanup
-  };
-}, []);
   return (
-    <div>
-      <h1>Mensagens em tempo real</h1>
-      <ul>
-        {messages.map((msg, index) => {
-          console.log("Rendering message:", msg);
-          return <li key={index}>
-            <strong>{msg.display_name}:</strong> {msg.message}
-          </li>;
-       })}
-    </ul>
-    </div>
+    <>
+      {token ? (
+        <Chat tokenId={token} />
+      ) : (
+        <Login onLogin={handleLogin} />
+      )}
+    </>
   );
 }
 
