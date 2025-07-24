@@ -22,6 +22,7 @@ function Chat({ tokenId }) {
 
     const socket = new WebSocket("ws://localhost:8000/ws");
     socket.onmessage = (event) => {
+      console.log("New message received:", event.data);
       const newMessage = JSON.parse(event.data);
       setMessages((prev) => [...prev, newMessage]);
     };
@@ -30,7 +31,7 @@ function Chat({ tokenId }) {
     socket.onclose = () => console.log("WebSocket closed");
 
     return () => socket.close();
-  }, [error]);
+  }, []);
 
   const handleSend = async () => {
     if (!newMessage.trim()) return;

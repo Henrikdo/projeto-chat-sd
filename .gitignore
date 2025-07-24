@@ -6,3 +6,9 @@
 client/node_modules/
 frontend/node_modules/
 server/venv/
+server/__pycache__/
+server/.env
+client/.env
+server/db/__pycache__
+server/models/__pycache__
+server/routes/__pycache__
