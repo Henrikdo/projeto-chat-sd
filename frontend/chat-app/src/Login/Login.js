@@ -1,5 +1,7 @@
 // Login.js
 import React, { useState } from "react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebase-config";
 
 function Login({ onLogin }) {
   const [email, setEmail] = useState("");
@@ -11,18 +13,12 @@ function Login({ onLogin }) {
     setError(null);
 
     try {
-      // 🔒 Replace this with your actual login logic (e.g., Firebase auth)
-      const response = await fetch("http://localhost:3003/user/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) throw new Error("Invalid credentials");
-      const data = await response.json();
-
-      console.log(data.data.idToken)
-      onLogin(data.data.idToken); // 🔑 pass token to parent
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      const idToken = await user.getIdToken();
+      localStorage.setItem("tokenId", idToken);
+      console.log("ID Token:", idToken); // 🔑 use esse token para enviar ao backend se necessário
+      // Você pode guardar em state, context ou simplesmente usar quando precisar
     } catch (err) {
       setError("Login failed: " + err.message);
     }

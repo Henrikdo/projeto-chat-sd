@@ -1,11 +1,15 @@
 // src/Layout/PageContainer.jsx
 function PageContainer({ children }) {
   return (
-    <div style={{
-      maxWidth: "1200px",
-      margin: "0 auto",
-      padding: "2rem",
+    <div className = "page-container" style={{
+      marginLeft: "200px",
+      height: "100vh",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "right",
+      justifyContent: "right",
       width: "100%",
+
     }}>
       {children}
     </div>

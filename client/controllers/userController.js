@@ -1,7 +1,21 @@
 const admin = require('../firebase');
 const axios = require('axios');
+const cloudinary = require('../config/cloudinary');
+const streamifier = require("streamifier");
 
 
+const uploadToCloudinary = (buffer) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { resource_type: "image" },
+      (error, result) => {
+        if (error) return reject(error);
+        return resolve(result);
+      }
+    );
+    streamifier.createReadStream(buffer).pipe(stream);
+  });
+};
 
 const userController = {
     userLogin: async (req, res) => {
@@ -47,6 +61,33 @@ const userController = {
             res.status(200).json({
                 message: "User updated successfully",
                 data: { uid, displayName }
+            });
+        } catch (error) {
+            console.error("Error updating user:", error);
+            res.status(500).json({ error: "Error updating user" });
+        }
+    },
+    userUpdateImage: async (req, res) => {
+        const { tokenId, displayName } = req.body;
+        const fileBuffer = req.file?.buffer;
+
+        if (!tokenId) return res.status(400).json({ error: "tokenId is required" });
+        if (!fileBuffer) return res.status(400).json({ error: "Image file is required" });
+
+        try {
+            const decodedToken = await admin.auth().verifyIdToken(tokenId);
+            const uid = decodedToken.uid;
+            const uploadResult = await uploadToCloudinary(fileBuffer);
+            const photoURL = uploadResult.secure_url;
+
+            await admin.auth().updateUser(uid, {
+            displayName,
+            photoURL,
+            });
+
+            res.status(200).json({
+            message: "User updated successfully",
+            data: { uid, displayName, photoURL },
             });
         } catch (error) {
             console.error("Error updating user:", error);

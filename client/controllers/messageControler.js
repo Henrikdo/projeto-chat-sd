@@ -41,12 +41,15 @@ const messageController = {
                 return res.status(400).json("No tokenId provided");
             }
             
-            if (!(await validateToken(req.body.tokenId))) {
+            const decodedToken = await validateToken(req.body.tokenId);
+            if (!decodedToken) {
                 return res.status(401).json({ error: "Invalid token" });
             }
+            const userRecord = await admin.auth().getUser(decodedToken.uid);
 
             let contentToSend = {
-                tokenId: req.body.tokenId,
+                userId: userRecord.uid || null,
+                displayName: userRecord.displayName || null,
                 message: req.body.message || null,
                 imageUrl: null
             };

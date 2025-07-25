@@ -1,71 +1,60 @@
 import { useEffect, useState } from "react";
-import './App.css';
+import "./App.css";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
 } from "react-router-dom";
+
+// Componentes
 import UserPage from "./User/UserPage";
-import Header from "./Header/Header";
+import SideNav from "./SideNav/SideNav";
 import Chat from "./Chat/Chat";
 import Login from "./Login/Login";
-import PageContainer from "./Layout/PageContainer"; // <-- importe aqui
+import PageContainer from "./Layout/PageContainer";
 
-const isLoggedIn = async (tokenId) => {
-  try {
-    const res = await fetch("http://localhost:3003/user/verifyLogin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tokenId }),
-    });
-    if (!res.ok) return false;
-    const data = await res.json();
-    return data.valid === true;
-  } catch (err) {
-    console.error("Login check failed:", err);
-    return false;
-  }
-};
+// 1. Importe o 'auth' do seu arquivo de configuração do Firebase
+import { auth } from "./firebase-config"; // Ajuste o caminho se necessário
+import { onAuthStateChanged } from "firebase/auth";
 
 function App() {
-  const [token, setToken] = useState(null);
+  // 2. O estado agora armazena o objeto 'user' completo, não apenas o token.
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // 3. useEffect agora observa o estado de autenticação do Firebase
   useEffect(() => {
-    const checkLogin = async () => {
-      const storedToken = localStorage.getItem("tokenId");
-      if (storedToken) {
-        const stillValid = await isLoggedIn(storedToken);
-        if (stillValid) {
-          setToken(storedToken);
-        } else {
-          localStorage.removeItem("tokenId");
-        }
-      }
-      setLoading(false);
-    };
-    checkLogin();
-  }, []);
+    // onAuthStateChanged retorna uma função 'unsubscribe' para limpeza
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      // Se 'user' existir, o usuário está logado. Se for 'null', não está.
+      setCurrentUser(user);
+      setLoading(false); // Marca o carregamento como concluído
+    });
 
-  const handleLogin = (tokenId) => {
-    localStorage.setItem("tokenId", tokenId);
-    setToken(tokenId);
-  };
+    // Função de limpeza que será chamada quando o componente for desmontado
+    return () => unsubscribe();
+  }, []); // O array vazio garante que isso rode apenas uma vez
 
-  if (loading) return <p>Carregando...</p>;
+  // 4. Removemos as funções 'isLoggedIn' e 'handleLogin'. O Firebase cuida de tudo!
+
+  if (loading) {
+    return <p>Carregando...</p>; // Tela de loading enquanto o Firebase verifica a sessão
+  }
 
   return (
     <Router>
-      {token && <Header />}
+      {/* 5. A lógica de roteamento agora é baseada no 'currentUser' */}
+      {currentUser && <SideNav />}
       <Routes>
-        {token ? (
+        {currentUser ? (
           <>
+            {/* 6. O componente Chat não precisa mais receber o token como prop */}
             <Route
               path="/"
               element={
                 <PageContainer>
-                  <Chat tokenId={token} />
+                  <Chat />
                 </PageContainer>
               }
             />
@@ -81,7 +70,8 @@ function App() {
           </>
         ) : (
           <>
-            <Route path="/login" element={<Login onLogin={handleLogin} />} />
+            {/* O componente de Login agora usa o SDK do Firebase internamente */}
+            <Route path="/login" element={<Login />} />
             <Route path="*" element={<Navigate to="/login" />} />
           </>
         )}

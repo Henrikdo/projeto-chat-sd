@@ -6,8 +6,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse
 import asyncio
-import firebase_admin
-from firebase_admin import credentials, auth
 import json as JSON
 import os
 from models.message_model import Message
@@ -16,27 +14,11 @@ from datetime import datetime
 from routes import messages
 from bson import ObjectId
 
-cred = credentials.Certificate("./serviceAccountKey.json")
-firebaseApp = firebase_admin.initialize_app(cred)
 
-
-if firebaseApp:
-    print("Firebase initialized successfully")
-else:
-    print("Failed to initialize Firebase")
 message_log = []
 
 def clear():
     os.system("cls" if os.name == "nt" else "clear")
-
-
-def get_user_from_token(token: str):
-    try:
-        decoded_token = firebase_admin.auth.verify_id_token(token)
-        return decoded_token
-    except firebase_admin.auth.InvalidIdTokenError:
-        print("Invalid token")
-        return None
 
 
 def print_message_log():
@@ -57,36 +39,26 @@ async def consume_rabbitmq():
                 async with message.process():
                     json_data = JSON.loads(message.body.decode())
                     msg_text = json_data.get("message")
-                    tokenId = json_data.get("tokenId")
                     imageUrl = json_data.get("imageUrl")
+                    userId = json_data.get("userId")
+                    displayName = json_data.get("displayName")
                     response = {'status': 'ok', 'message': 'Received!'}
-                    user = get_user_from_token(tokenId)
-                    if user:
-                        user_get = firebase_admin.auth.get_user(user.get("uid"))
-                        entry = {
-                            "userId": user["uid"],
-                            "display_name": user_get.display_name or "Unknown",
-                            "email": user["email"],
+
+                    entry = {
+                            "userId": userId,
+                            "display_name": displayName or "Unknown",
                             "message": msg_text,
                             "imageUrl": imageUrl if imageUrl else None,
                             "timestamp": datetime.now().isoformat()
                         }
-                        #clear()
-                        message_log.append(entry)
-                        print(f"✅ Mensagem recebida: {entry}")
-                        await messages_collection.insert_one(entry)
-                        #print_message_log()
-                        response.update({
+                    message_log.append(entry)
+                    print(f"✅ Mensagem recebida: {entry}")
+                    await messages_collection.insert_one(entry)
+                    response.update({
                             'status': '200',
-                            'message': f'Message from {user.get('email')} processed and saved successfully.'
-                        })
-                        await broadcast_to_clients(entry)
-                    else:
-                        print("⚠️ Token inválido")
-                        response.update({
-                            'status': '401',
-                            'message': 'Unauthorized. Message not processed.'
-                        })
+                            'message': f'Message from {json_data.get("userId")} processed and saved successfully.'
+                    })
+                    await broadcast_to_clients(entry)
                     if message.reply_to:
                         await channel.default_exchange.publish(
                             aio_pika.Message(
