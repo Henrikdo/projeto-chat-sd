@@ -51,6 +51,7 @@ const messageController = {
                 userId: userRecord.uid || null,
                 displayName: userRecord.displayName || null,
                 message: req.body.message || null,
+                photoUrl: userRecord.photoURL || null,
                 imageUrl: null
             };
             if (req.file) {

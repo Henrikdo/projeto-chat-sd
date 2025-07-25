@@ -77,14 +77,40 @@ const userController = {
         try {
             const decodedToken = await admin.auth().verifyIdToken(tokenId);
             const uid = decodedToken.uid;
+
+            const userRecord = await admin.auth().getUser(uid);
+            const oldPhotoURL = userRecord.photoURL;
+
+            let publicId = null;
+            if (oldPhotoURL) {
+            const regex = /\/upload\/(?:v\d+\/)?(.+)\.(jpg|jpeg|png|gif|webp)$/i;
+            const match = oldPhotoURL.match(regex);
+            if (match && match[1]) {
+                publicId = match[1];
+            }
+            }
+
+            // Deleta a imagem antiga
+            if (publicId) {
+                try {
+                    await cloudinary.uploader.destroy(publicId);
+                } catch (deleteError) {
+                    console.error("Erro ao deletar imagem antiga:", deleteError);
+                    return res.status(500).json({ error: "Falha ao deletar imagem antiga" });
+                }
+            }
+
             const uploadResult = await uploadToCloudinary(fileBuffer);
             const photoURL = uploadResult.secure_url;
-
+            
             await admin.auth().updateUser(uid, {
             displayName,
             photoURL,
             });
-
+            await axios.put('http://localhost:8000/messages/update-photo', {
+            uuid: uid,
+            new_photo_url: photoURL,
+            });
             res.status(200).json({
             message: "User updated successfully",
             data: { uid, displayName, photoURL },
@@ -103,6 +129,27 @@ const userController = {
             res.json({ valid: true, uid: decoded.uid, name: decoded.name });
         } catch (err) {
             res.status(401).json({ valid: false });
+        }
+    },
+    getUserPhoto: async (req, res) => {
+        const { uid } = req.body;
+
+        if (!uid) {
+            return res.status(400).json({ error: 'UID is required' });
+        }
+
+        try {
+            const userRecord = await admin.auth().getUser(uid);
+            const { photoURL, displayName } = userRecord;
+
+            res.status(200).json({
+                success: true,
+                photoURL,
+                displayName
+            });
+        } catch (error) {
+            console.error("Error fetching user:", error);
+            res.status(404).json({ success: false, message: "User not found" });
         }
     }
 }

@@ -17,8 +17,6 @@ function Login({ onLogin }) {
       const user = userCredential.user;
       const idToken = await user.getIdToken();
       localStorage.setItem("tokenId", idToken);
-      console.log("ID Token:", idToken); // 🔑 use esse token para enviar ao backend se necessário
-      // Você pode guardar em state, context ou simplesmente usar quando precisar
     } catch (err) {
       setError("Login failed: " + err.message);
     }

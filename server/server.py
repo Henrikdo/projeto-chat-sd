@@ -41,6 +41,7 @@ async def consume_rabbitmq():
                     msg_text = json_data.get("message")
                     imageUrl = json_data.get("imageUrl")
                     userId = json_data.get("userId")
+                    photoUrl = json_data.get("photoUrl")
                     displayName = json_data.get("displayName")
                     response = {'status': 'ok', 'message': 'Received!'}
 
@@ -49,6 +50,7 @@ async def consume_rabbitmq():
                             "display_name": displayName or "Unknown",
                             "message": msg_text,
                             "imageUrl": imageUrl if imageUrl else None,
+                            "photoUrl": photoUrl if photoUrl else None,
                             "timestamp": datetime.now().isoformat()
                         }
                     message_log.append(entry)

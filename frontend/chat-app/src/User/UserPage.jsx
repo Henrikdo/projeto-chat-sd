@@ -36,7 +36,6 @@ function UserPage() {
       });
 
       if (!res.ok) throw new Error("Failed to update user");
-      // Se quiser, pode ler a resposta: const data = await res.json();
 
     } catch (e) {
       console.error("Error updating user:", e);
@@ -58,6 +57,7 @@ function UserPage() {
     if (currentUser) {
       setName(currentUser.displayName || "Usuário sem nome");
       setPhotoURL(currentUser.photoURL || null);
+
     }
   }, [navigate]);
 
@@ -74,7 +74,37 @@ function UserPage() {
     navigate("/");
     window.location.reload(); // (opcional) força recarregamento limpo
   };
+  const handleImageChange = async (e) => {
+    const file = e.target.files?.[0];
+              if (!file) return;
+              const formData = new FormData();
+              const auth = getAuth();
+              const user = auth.currentUser;
+              const tokenId = await user.getIdToken();
+              formData.append("tokenId", tokenId);
+              formData.append("displayName", name); // mantém o nome atual
+              formData.append("image", file);
 
+              try {
+                const res = await fetch("http://localhost:3003/user/updateUserImage", {
+                  method: "PUT",
+                  body: formData,
+                });
+                if (!res.ok) throw new Error("Erro ao enviar imagem");
+
+                const data = await res.json();
+                console.log("Imagem enviada:", data);
+
+          
+                await auth.currentUser.reload(); // força atualização
+                const updatedUser = auth.currentUser;
+                setPhotoURL(updatedUser.photoURL);
+                localStorage.setItem("userPhotoUrl", updatedUser.photoURL);
+
+              } catch (err) {
+                console.error("Erro ao trocar imagem:", err);
+              }
+  }
   const handlePasswordChange = () => {
     alert("Funcionalidade de troca de senha ainda não implementada.");
   };
@@ -111,35 +141,7 @@ function UserPage() {
             accept="image/*"
             style={{ display: "none" }}
             onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              const formData = new FormData();
-              const auth = getAuth();
-              const user = auth.currentUser;
-              const tokenId = await user.getIdToken();
-              formData.append("tokenId", tokenId);
-              formData.append("displayName", name); // mantém o nome atual
-              formData.append("image", file);
-
-              try {
-                const res = await fetch("http://localhost:3003/user/updateUserImage", {
-                  method: "PUT",
-                  body: formData,
-                });
-                if (!res.ok) throw new Error("Erro ao enviar imagem");
-
-                const data = await res.json();
-                console.log("Imagem enviada:", data);
-
-          
-                await auth.currentUser.reload(); // força atualização
-                const updatedUser = auth.currentUser;
-                setPhotoURL(updatedUser.photoURL);
-                localStorage.setItem("userPhotoUrl", updatedUser.photoURL);
-
-              } catch (err) {
-                console.error("Erro ao trocar imagem:", err);
-              }
+              await handleImageChange(e);
             }}
           />
         </div>

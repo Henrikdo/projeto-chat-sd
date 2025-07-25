@@ -15,6 +15,10 @@ router.put('/', (req, res) => {
     userController.userUpdate(req, res);
 });
 
+router.get('/userPhoto', (req, res) => {
+    userController.getUserPhoto(req, res);
+});
+
 router.put('/updateUserImage', upload.single('image'), (req, res) => {
     userController.userUpdateImage(req, res);
 });
