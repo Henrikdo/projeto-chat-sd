@@ -1,11 +1,15 @@
 import { Link } from "react-router-dom";
 import { Home, User } from "lucide-react";
+import logo from "../assets/logo.svg";
 import "./SideNav.css";
 
 function SideNav() {
   return (
     <aside className="side-nav">
-      <h2 className="logo">💬 ChatApp</h2>
+      <div style={ { display: "flex", alignItems: "center",marginBottom: "20px" } }>
+        <img src={logo} style={{width: "50px", height: "50px"}} alt="Logo Chato" />
+        <h1>Chato</h1>
+      </div>
       <nav className="nav-links">
         <ul>
           <li>

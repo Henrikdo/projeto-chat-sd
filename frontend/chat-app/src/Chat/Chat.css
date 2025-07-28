@@ -31,7 +31,16 @@
   padding: 0;
   margin: 0;
 }
+.message-content {
+  background-color: #47474718;
+  color: #fff;
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 5px;
+  max-width: 80%;
 
+  word-wrap: break-word;
+}
 
 /* Estilizando a scrollbar para navegadores WebKit (Chrome, Edge, Safari) */
 .chat-box::-webkit-scrollbar {
@@ -69,6 +78,51 @@
   flex-direction: column;
 }
 
+.message-actions {
+  display: none;
+  top: 5px;
+  right: 5px;
+  gap: 8px;
+  margin-left: 50px;
+}
+.editing-text{
+  color: #fff;
+  font-size: .8rem;
+  font-weight: 100;
+  font-family: 'Poppins', sans-serif;
+}
+
+.edit-input{
+  color: #fff;
+  background-color: #313131;
+  font-size: .8rem;
+  font-weight: 100;
+  border: 1px solid #aaa;
+  border-radius: 5px;
+  font-family: 'Poppins', sans-serif;
+  padding: 12px;
+}
+.message-icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 2rem;
+  height: 2rem;
+  padding: 4px;
+  margin-left: 4px;
+  color: #666;
+  border-radius: 10px;
+  background-color: #4b4b4b;
+  transition: color 0.2s;
+}
+
+.message-icon-button:hover {
+  color: rgb(189, 182, 182); /* ou outra cor dependendo do ícone */
+}
+.message-content:hover .message-actions {
+  display: flex;
+}
+
 .message-wrapper {
   display: flex;
   align-items: center;
@@ -88,9 +142,6 @@
 }
 
 .chat-input-container {
-  bottom: 0;
-  left: 0;
-  right: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -106,11 +157,14 @@
   border: 1px solid #aaa;
   border-radius: 5px 5px 5px 5px;
   font-size: 1rem;
+  background-color: transparent;
+  color: #fff;
+  margin-right: .1rem;
 }
 
 .chat-button {
   padding: 0 1rem;
-  background-color: #4caf50;
+  background-color: #313131;
   color: white;
   border: none;
   border-radius: 5px 5px 5px 5px;
@@ -119,7 +173,7 @@
 }
 
 .chat-button:hover {
-  background-color: #39853c;
+  background-color: #8f8f8f;
 }
 
 .chat-error {
@@ -156,6 +210,7 @@
   cursor: pointer;
   display: block;
   overflow: hidden;
+    margin-left: 3rem;
 }
 
 .chat-image:hover {
@@ -172,6 +227,7 @@
 .image-upload-container {
   position: relative;
   display: inline-block;
+  margin-right: .1rem;
 }
 .image-upload-container {
   position: relative;
@@ -179,7 +235,7 @@
 }
 
 .chat-image-upload {
-  background-color: #0078d4;
+  background-color: #2727272d;
   color: white;
   padding: 8px;
   border-radius: 10%;
@@ -187,6 +243,8 @@
   transition: background-color 0.2s ease;
   width: 48px;
   height: 48px;
+  border-color: #f1f1f1;
+  border: 1px solid #f1f1f1;
   display: flex;
   align-items: center;
   justify-content: center;

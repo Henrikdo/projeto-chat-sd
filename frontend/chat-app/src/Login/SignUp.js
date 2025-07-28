@@ -1,39 +1,50 @@
-// Login.js
 import React, { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth } from "../firebase-config";
-import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.svg";
 
-
-
-function Login({ onLogin }) {
+function Signup() {
   const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
-  const handleSubmit = async (e) => {
+
+  const handleSignup = async (e) => {
     e.preventDefault();
     setError(null);
 
+    if (password.length < 6) {
+      setError("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      const idToken = await user.getIdToken();
-      localStorage.setItem("tokenId", idToken);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(userCredential.user, {
+        displayName: displayName,
+      });
+      // opcional: redirecionar ou mostrar sucesso
     } catch (err) {
-      setError("Login failed: " + err.message);
+      setError("Erro ao criar conta: " + err.message);
     }
   };
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...styles.container }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: "20px" }}>
         <img src={logo} style={{ width: "50px", height: "50px" }} alt="Logo Chato" />
         <h1 style={{ color: "#fff" }}>Chato</h1>
       </div>
-      <h2 style={styles.h2} >Login</h2>
-      <form onSubmit={handleSubmit} style={styles.form}>
+      <h2 style={styles.h2}>Criar Conta</h2>
+      <form onSubmit={handleSignup} style={styles.form}>
+        <input
+          type="text"
+          placeholder="Nome de exibição"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          required
+          style={styles.input}
+        />
         <input
           type="email"
           placeholder="Email"
@@ -44,19 +55,13 @@ function Login({ onLogin }) {
         />
         <input
           type="password"
-          placeholder="Password"
+          placeholder="Senha (mínimo 6 caracteres)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
           style={styles.input}
         />
-        <button type="submit" style={styles.button}>Login</button>
-        <p style={{ color: "#ccc", marginTop: "10px" }}>
-          Não tem conta?{" "}
-          <span style={{ color: "#4caf50", cursor: "pointer" }} onClick={() => navigate("/signup")}>
-            Crie aqui
-          </span>
-        </p>
+        <button type="submit" style={styles.button}>Criar Conta</button>
         {error && <p style={{ color: "red" }}>{error}</p>}
       </form>
     </div>
@@ -65,7 +70,15 @@ function Login({ onLogin }) {
 
 const styles = {
   h2: { color: "#fff" },
-  container: { maxWidth: 300, margin: "50px auto", textAlign: "center", justifyContent: "center", alignItems: "center", display: "flex", flexDirection: "column" },
+  container: {
+    maxWidth: 300,
+    margin: "50px auto",
+    textAlign: "center",
+    justifyContent: "center",
+    alignItems: "center",
+    display: "flex",
+    flexDirection: "column",
+  },
   form: { display: "flex", flexDirection: "column", gap: 10 },
   input: {
     padding: 10,
@@ -73,7 +86,7 @@ const styles = {
     borderRadius: 5,
     border: "1px solid #ccc",
     backgroundColor: "#424242",
-    color: "#fff", // texto branco
+    color: "#fff",
   },
   button: {
     padding: 10,
@@ -81,13 +94,11 @@ const styles = {
     cursor: "pointer",
     borderRadius: 5,
     border: "none",
-    backgroundColor: "#2196f3", // azul leve
+    backgroundColor: "#227E25FF",
     color: "#fff",
     fontWeight: "bold",
-    transition: "background-color 0.2s",
     marginTop: 10,
   },
-
 };
 
-export default Login;
+export default Signup;

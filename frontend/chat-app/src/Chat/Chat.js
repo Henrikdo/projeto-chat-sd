@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { auth } from "../firebase-config";
-import { Image as ImageIcon, X } from "lucide-react";
+import { Image as ImageIcon, X, Pencil, Trash2,User } from "lucide-react";
 import { useRef } from "react";
 import "./Chat.css";
 
@@ -14,6 +14,8 @@ function Chat() {
   const [iSent, setISent] = useState(false); // <- flag: eu enviei
   const bottomRef = useRef(null);
   const listRef = useRef(null);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editText, setEditText] = useState("");
 
   const isNearBottom = (el, tolerance = 200) => {
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
@@ -105,6 +107,61 @@ function Chat() {
       setPreviewUrl(imageUrl);
     }
   };
+  const handleDelete = async (id) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const tokenId = await user.getIdToken();
+
+      const response = await fetch(`http://localhost:8000/messages/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${tokenId}`,
+        },
+      });
+
+      console.log("Response status:", response);
+      if (!response.ok) {
+        throw new Error("Erro ao deletar a mensagem");
+      }
+
+      // Remover da lista local
+      setMessages((prev) => prev.filter((msg) => msg._id !== id));
+    } catch (err) {
+      console.error("Erro ao deletar mensagem:", err);
+      alert("Erro ao deletar a mensagem.");
+    }
+  };
+  const handleEdit = async (id, newText) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+      const tokenId = await user.getIdToken();
+
+      const response = await fetch(`http://localhost:8000/messages/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${tokenId}`,
+        },
+        body: JSON.stringify({ message: newText }),
+      });
+
+      if (!response.ok) throw new Error("Erro ao editar a mensagem", response);
+
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === id ? { ...msg, message: newText } : msg
+        )
+      );
+      setEditingMessageId(null); // Finaliza edição
+    } catch (err) {
+      console.error("Erro ao editar mensagem:", err);
+      alert("Erro ao editar a mensagem.");
+    }
+  };
+
 
 
 
@@ -119,18 +176,32 @@ function Chat() {
 
             <li key={index} className="chat-message">
               <div className="message-wrapper">
-                <img
-                  src={msg.photoUrl}
-                  alt="avatar"
-                  className="message-avatar"
-                  style={{
-                    width: "32px",
-                    height: "32px",
-                    borderRadius: "50%",
-                    objectFit: "cover",
-                    backgroundColor: "#ccc"
-                  }}
-                />
+
+                {msg.photoUrl ? (
+                  <img
+                    src={msg.photoUrl}
+                    alt="avatar"
+                    className="message-avatar"
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      backgroundColor: "#ccc",
+                    }}
+                  />
+                ) : (
+                  <User
+                    size={32}
+                    style={{
+                      borderRadius: "50%",
+                      backgroundColor: "#ccc",
+                      padding: 4,
+                      color: "#555",
+                      display: "inline-block",
+                    }}
+                  />
+                )}
                 <div className="message-content">
                   <div className="message-header">
                     <p className="message_display_name">{msg.display_name}</p>
@@ -144,11 +215,53 @@ function Chat() {
                       })}
                       {' '}
                     </p>
+                    {auth.currentUser?.uid === msg.userId && (<div className="message-actions">
+                      <button
+                        className="message-icon-button"
+                        onClick={() => {
+                          setEditingMessageId(msg._id);
+                          setEditText(msg.message);
+                        }}
+                        title="Editar"
+                      >
+                        <Pencil size={16} />
+                      </button>
+
+                      <button
+                        className="message-icon-button"
+                        onClick={() => handleDelete(msg._id)}
+                        title="Apagar"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>)}
                   </div>
-                  <p className="message_text">{msg.message}</p>
+                  {editingMessageId === msg._id ? (
+                    <>
+                      <div className="edit-container">
+                        <input
+                          className="edit-input"
+                          type="text"
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              handleEdit(msg._id, editText);
+                            } else if (e.key === "Escape") {
+                              setEditingMessageId(null);
+                            }
+                          }}
+                          onBlur={() => { setEditingMessageId(null); }}
+                          autoFocus
+                        />
+                        <p className="editing-text">esc para cancelar • enter para salvar</p>
+                      </div>
+                    </>
+                  ) : (< p className="message_text">{msg.message}</p>)}
                 </div>
               </div>
-                {msg.imageUrl && (
+              {
+                msg.imageUrl && (
                   <div className="chat-image">
                     <img
                       src={msg.imageUrl}
@@ -156,8 +269,8 @@ function Chat() {
                       className="message-image"
                     />
                   </div>
-                )}
-
+                )
+              }
 
 
             </li>
@@ -210,7 +323,7 @@ function Chat() {
 
 
       {error && <p className="chat-error">{error}</p>}
-    </div>
+    </div >
   );
 
 }
